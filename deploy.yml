@@ -1,48 +1,55 @@
 apiVersion: v1
-kind: Service
+kind: PersistentVolumeClaim
 metadata:
-  name: web
-  labels:
-    app: webserver
+  name: webpvc1
 spec:
-  ports:
-    - port: 4949
-      nodePort: 31000
-      targetPort: 80
-  selector:
-    app: webserver
-    tier: frontend
-  type: NodePort
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: website
+  name: webserver
   labels:
     app: webserver
 spec:
+  replicas: 3
   selector:
     matchLabels:
       app: webserver
-      tier: frontend
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
         app: webserver
-        tier: frontend
     spec:
       containers:
-      - image: httpd
-        name: web
+      - name: phpimage
+        image: vimal13/apache-webserver-php
+        imagePullPolicy: Always
         ports:
         - containerPort: 80
-          name: webserver
         volumeMounts:
-        - name: web-storage
-          mountPath: /usr/local/apache2/htdocs/
+        - name: webmount
+          mountPath: /var/www/html
       volumes:
-      - name: web-storage
+      - name: webmount
         persistentVolumeClaim:
-          claimName: web-pvc
+          claimName: webpvc1
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: hostname-service
+spec:
+  type: NodePort
+  selector:
+    app: webserver
+  ports:
+    - nodePort: 30100
+      port: 8585
+      targetPort: 80
